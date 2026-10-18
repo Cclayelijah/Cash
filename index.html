@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Today</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23101114'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-size='16' fill='%23f5f6f8' font-family='sans-serif'%3E$%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #101114;
+      --fg: #f5f6f8;
+      --muted: #9398a3;
+      --line: rgba(245, 246, 248, 0.12);
+      --accent: #8ee0a8;
+      --urgent: #f0c48a;
+      --refund: #e7b2aa;
+      color-scheme: dark;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: #101114;
+    }
+
+    body {
+      font-family: Outfit, "Segoe UI", sans-serif;
+      color: var(--fg);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    ::selection {
+      background: rgba(142, 224, 168, 0.28);
+    }
+
+    button, input {
+      font: inherit;
+      color: inherit;
+    }
+
+    button {
+      background: none;
+      border: 0;
+      padding: 0;
+      cursor: pointer;
+    }
+
+    .app {
+      min-height: 100dvh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      padding: clamp(1.1rem, 2vw, 2.25rem) clamp(1.25rem, 3vw, 3rem) clamp(1rem, 2vw, 1.5rem);
+      background:
+        radial-gradient(ellipse 70% 46% at 50% 38%, rgba(255, 255, 255, 0.045), transparent 58%),
+        var(--bg);
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .date, .clock {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    .fs {
+      width: 2.25rem;
+      height: 2.25rem;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+    }
+
+    .fs:hover {
+      color: var(--fg);
+      border-color: rgba(245, 246, 248, 0.32);
+    }
+
+    .icon-exit { display: none; }
+
+    :fullscreen .icon-enter { display: none; }
+    :fullscreen .icon-exit { display: block; }
+
+    .stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      min-height: 0;
+      padding: 1rem 0 2.5rem;
+    }
+
+    .eyebrow {
+      margin: 0 0 0.85rem;
+      color: var(--muted);
+      font-size: 0.75rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .amount {
+      margin: 0;
+      font-weight: 500;
+      font-size: clamp(4.5rem, 16vw, 12rem);
+      letter-spacing: -0.05em;
+      line-height: 0.88;
+      font-variant-numeric: tabular-nums;
+      transition: color 0.4s ease;
+    }
+
+    .cents {
+      font-size: 0.38em;
+      letter-spacing: -0.03em;
+      color: rgba(245, 246, 248, 0.62);
+    }
+
+    .is-met .amount,
+    .is-met .cents {
+      color: var(--accent);
+    }
+
+    .meter {
+      width: min(34rem, 70vw);
+      height: 2px;
+      margin: 1.6rem 0 0.85rem;
+      border-radius: 99px;
+      background: #2a2d36;
+      overflow: hidden;
+    }
+
+    .meter > span {
+      display: block;
+      height: 100%;
+      width: 0;
+      border-radius: inherit;
+      background: var(--fg);
+      transition: width 0.45s ease, background 0.35s ease;
+    }
+
+    .is-met .meter > span {
+      background: var(--accent);
+    }
+
+    .of-goal {
+      margin: 0;
+      color: var(--muted);
+      font-size: clamp(0.95rem, 1.5vw, 1.2rem);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .of-goal strong {
+      color: var(--fg);
+      font-weight: 500;
+    }
+
+    .stats {
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      gap: clamp(1.5rem, 4vw, 3.25rem);
+      margin-top: clamp(1.75rem, 4vh, 3.25rem);
+    }
+
+    .stat {
+      text-align: left;
+      min-width: 7.5rem;
+    }
+
+    .stat-label {
+      margin: 0 0 0.3rem;
+      color: var(--muted);
+      font-size: 0.68rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 4rem);
+      font-weight: 500;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-value.is-urgent {
+      color: var(--urgent);
+    }
+
+    .stat-sub {
+      margin: 0.4rem 0 0;
+      min-height: 1.2em;
+      color: var(--muted);
+      font-size: clamp(0.9rem, 1.4vw, 1.05rem);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-rule {
+      width: 1px;
+      background: var(--line);
+    }
+
+    .bottom {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.55rem;
+    }
+
+    .sales {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 0.35rem;
+      max-width: min(52rem, 94vw);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .sales::-webkit-scrollbar { display: none; }
+    .sales:empty { display: none; }
+
+    .chip {
+      flex: 0 0 auto;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0.18rem 0.55rem;
+      color: var(--muted);
+      font-size: 0.75rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .chip:hover {
+      color: var(--fg);
+      border-color: rgba(245, 246, 248, 0.32);
+    }
+
+    .chip.is-refund {
+      color: var(--refund);
+    }
+
+    .dock {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.28rem 0.35rem 0.28rem 0.7rem;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(16, 17, 20, 0.72);
+      backdrop-filter: blur(18px);
+    }
+
+    .sale-form, .field {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .field-label {
+      color: var(--muted);
+      font-size: 0.62rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .sale-form:focus-within .field-label,
+    .field:focus-within .field-label {
+      color: var(--fg);
+    }
+
+    .dock input {
+      width: 4.6rem;
+      border: 0;
+      outline: none;
+      background: transparent;
+      padding: 0.22rem 0;
+      font-size: 0.8rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .dock input::placeholder {
+      color: #5c616b;
+    }
+
+    .add {
+      width: 1.6rem;
+      height: 1.6rem;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--fg);
+      color: #101114;
+    }
+
+    .add:hover { background: #fff; }
+
+    .divider {
+      width: 1px;
+      height: 0.95rem;
+      margin: 0 0.2rem;
+      background: var(--line);
+    }
+
+    :focus-visible {
+      outline: 1px solid rgba(245, 246, 248, 0.75);
+      outline-offset: 3px;
+    }
+
+    .dock input:focus-visible { outline: none; }
+
+    .shake {
+      animation: shake 0.18s linear;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-2px); }
+      75% { transform: translateX(2px); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .stats { gap: 1.1rem; }
+      .stat-rule { display: none; }
+      .clock { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <header>
+      <p class="date" id="date"></p>
+      <div class="header-actions">
+        <p class="clock" id="clock"></p>
+        <button class="fs" id="fullscreen" type="button" aria-pressed="false" title="Full screen (F)" aria-label="Enter full screen">
+          <svg class="icon-enter" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <path d="M9 4H5v4M15 4h4v4M9 20H5v-4M15 20h4v-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <svg class="icon-exit" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="stage" id="stage">
+      <p class="eyebrow" id="eyebrow">Made today</p>
+      <h1 class="amount" id="amount" aria-live="polite">
+        <span id="sign"></span><span id="dollars">$0</span><span class="cents" id="cents">.00</span>
+      </h1>
+      <div class="meter" id="meter" aria-hidden="true"><span id="meter-fill"></span></div>
+      <p class="of-goal" id="of-goal"></p>
+      <div class="stats">
+        <div class="stat">
+          <p class="stat-label">Time left</p>
+          <p class="stat-value" id="time-left">–</p>
+        </div>
+        <div class="stat-rule" aria-hidden="true"></div>
+        <div class="stat">
+          <p class="stat-label" id="gap-label">Still to go</p>
+          <p class="stat-value" id="gap">–</p>
+          <p class="stat-sub" id="pace"></p>
+        </div>
+      </div>
+    </main>
+
+    <div class="bottom">
+      <div class="sales" id="sales"></div>
+      <div class="dock">
+        <form class="sale-form" id="sale-form" autocomplete="off">
+          <label class="field" for="sale-input">
+            <span class="field-label">Sale</span>
+            <input id="sale-input" inputmode="decimal" placeholder="0.00" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Completed sale amount">
+          </label>
+          <button class="add" type="submit" aria-label="Add sale">
+            <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+              <path d="M8 2.5v11M2.5 8h11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </form>
+        <span class="divider" aria-hidden="true"></span>
+        <label class="field" for="goal-input">
+          <span class="field-label">Goal</span>
+          <input id="goal-input" inputmode="decimal" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Daily goal">
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "cash-today-v1";
+    const DEFAULT_GOAL_CENTS = 50000;
+
+    const els = {
+      app: document.getElementById("app"),
+      stage: document.getElementById("stage"),
+      date: document.getElementById("date"),
+      clock: document.getElementById("clock"),
+      fullscreen: document.getElementById("fullscreen"),
+      eyebrow: document.getElementById("eyebrow"),
+      amount: document.getElementById("amount"),
+      sign: document.getElementById("sign"),
+      dollars: document.getElementById("dollars"),
+      cents: document.getElementById("cents"),
+      meterFill: document.getElementById("meter-fill"),
+      ofGoal: document.getElementById("of-goal"),
+      timeLeft: document.getElementById("time-left"),
+      gapLabel: document.getElementById("gap-label"),
+      gap: document.getElementById("gap"),
+      pace: document.getElementById("pace"),
+      sales: document.getElementById("sales"),
+      saleForm: document.getElementById("sale-form"),
+      saleInput: document.getElementById("sale-input"),
+      goalInput: document.getElementById("goal-input"),
+    };
+
+    const moneyFormat = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    });
+
+    let state = load();
+    let shownCents = 0;
+    let tweenToken = 0;
+    let fittedLength = -1;
+
+    function todayKey(date = new Date()) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+
+    function blankState(goalCents = DEFAULT_GOAL_CENTS) {
+      return { date: todayKey(), goalCents, sales: [] };
+    }
+
+    function load() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return blankState();
+        const parsed = JSON.parse(raw);
+        const goalCents = Number.isFinite(parsed.goalCents)
+          ? Math.max(0, Math.round(parsed.goalCents))
+          : DEFAULT_GOAL_CENTS;
+        const sales = Array.isArray(parsed.sales)
+          ? parsed.sales.filter((sale) => sale && Number.isFinite(sale.cents) && sale.id)
+          : [];
+        if (parsed.date !== todayKey()) return blankState(goalCents);
+        return {
+          date: parsed.date,
+          goalCents,
+          sales: sales.map((sale) => ({
+            id: String(sale.id),
+            cents: Math.round(sale.cents),
+            at: Number.isFinite(sale.at) ? sale.at : Date.now(),
+          })),
+        };
+      } catch {
+        return blankState();
+      }
+    }
+
+    function save() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch {
+        // Keep working for this session if storage is blocked.
+      }
+    }
+
+    function ensureToday() {
+      const key = todayKey();
+      if (state.date === key) return false;
+      state = blankState(state.goalCents);
+      save();
+      return true;
+    }
+
+    function sumCents() {
+      return state.sales.reduce((sum, sale) => sum + sale.cents, 0);
+    }
+
+    function usd(cents) {
+      return moneyFormat.format(cents / 100);
+    }
+
+    function amountParts(cents) {
+      const parts = moneyFormat.formatToParts(cents / 100);
+      let sign = "";
+      let dollars = "";
+      let fraction = "00";
+      for (const part of parts) {
+        if (part.type === "minusSign") sign = "-";
+        if (part.type === "integer" || part.type === "group") dollars += part.value;
+        if (part.type === "fraction") fraction = part.value;
+      }
+      return { sign, dollars, fraction };
+    }
+
+    function formatGoalInput(cents) {
+      const amount = cents / 100;
+      return Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
+    }
+
+    function parseDollars(raw, allowNegative) {
+      const cleaned = raw.trim().replace(/[$,\s]/g, "");
+      if (cleaned === "" || cleaned === "." || cleaned === "-" || cleaned === "-.") return null;
+      const pattern = allowNegative ? /^-?\d*\.?\d+$/ : /^\d*\.?\d+$/;
+      if (!pattern.test(cleaned)) return null;
+      const value = Number(cleaned);
+      if (!Number.isFinite(value)) return null;
+      if (!allowNegative && value < 0) return null;
+      if (value === 0) return null;
+      return Math.round(value * 100);
+    }
+
+    function parseGoal(raw) {
+      const cleaned = raw.trim().replace(/[$,\s]/g, "");
+      if (cleaned === "" || cleaned === ".") return null;
+      if (!/^\d*\.?\d+$/.test(cleaned)) return null;
+      const value = Number(cleaned);
+      if (!Number.isFinite(value) || value < 0) return null;
+      return Math.round(value * 100);
+    }
+
+    function uid() {
+      if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+      return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }
+
+    function msUntilMidnight(now) {
+      const end = new Date(now);
+      end.setHours(24, 0, 0, 0);
+      return end.getTime() - now.getTime();
+    }
+
+    function formatDuration(ms) {
+      if (ms <= 0) return "0m";
+      const totalSeconds = Math.floor(ms / 1000);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      if (hours > 0) return `${hours}h ${String(minutes).padStart(2, "0")}m`;
+      if (minutes > 0) return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
+      return `${seconds}s`;
+    }
+
+    function fitAmount() {
+      const maxWidth = els.stage.clientWidth * 0.92;
+      const maxHeight = Math.min(els.stage.clientHeight * 0.46, window.innerHeight * 0.4);
+      if (maxWidth < 40 || maxHeight < 40) return;
+      let size = Math.min(maxWidth * 0.42, maxHeight / 0.9);
+      els.amount.style.fontSize = `${size}px`;
+      let guard = 0;
+      while (els.amount.scrollWidth > maxWidth && size > 48 && guard < 6) {
+        size *= maxWidth / els.amount.scrollWidth;
+        els.amount.style.fontSize = `${size}px`;
+        guard += 1;
+      }
+    }
+
+    function paintAmount(cents) {
+      const parts = amountParts(cents);
+      els.sign.textContent = parts.sign;
+      els.dollars.textContent = `$${parts.dollars}`;
+      els.cents.textContent = `.${parts.fraction}`;
+      const length = `${parts.sign}${parts.dollars}`.length;
+      if (length !== fittedLength) {
+        fittedLength = length;
+        fitAmount();
+      }
+    }
+
+    function renderAmount(target, tween) {
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (!tween || reduce || target === shownCents) {
+        shownCents = target;
+        paintAmount(target);
+        return;
+      }
+      const from = shownCents;
+      const token = ++tweenToken;
+      const start = performance.now();
+      const duration = 480;
+      function frame(now) {
+        if (token !== tweenToken) return;
+        const progress = Math.min(1, (now - start) / duration);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        shownCents = progress === 1 ? target : Math.round(from + (target - from) * eased);
+        paintAmount(shownCents);
+        if (progress < 1) requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    }
+
+    function renderProgress(earned) {
+      const goal = state.goalCents;
+      const met = goal > 0 && earned >= goal;
+      els.app.classList.toggle("is-met", met);
+      const percent = goal > 0 ? (earned / goal) * 100 : 0;
+      els.meterFill.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+      els.ofGoal.replaceChildren();
+      if (goal <= 0) {
+        els.ofGoal.textContent = "Set a daily goal";
+        return;
+      }
+      const strong = document.createElement("strong");
+      strong.textContent = usd(earned);
+      els.ofGoal.append(strong, ` of ${usd(goal)} · ${Math.round(percent)}%`);
+    }
+
+    function renderClock() {
+      const now = new Date();
+      els.date.textContent = new Intl.DateTimeFormat("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+      }).format(now);
+      els.clock.textContent = new Intl.DateTimeFormat("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        second: "2-digit",
+      }).format(now);
+
+      const msLeft = msUntilMidnight(now);
+      const earned = sumCents();
+      const goal = state.goalCents;
+      const remaining = goal - earned;
+      const met = goal > 0 && remaining <= 0;
+
+      els.timeLeft.textContent = formatDuration(msLeft);
+      els.timeLeft.classList.toggle("is-urgent", goal > 0 && !met && msLeft > 0 && msLeft < 30 * 60 * 1000);
+
+      if (goal <= 0) {
+        els.gapLabel.textContent = "Daily goal";
+        els.gap.textContent = "Not set";
+        els.pace.textContent = "";
+        return;
+      }
+
+      if (met) {
+        els.gapLabel.textContent = "Over goal";
+        els.gap.textContent = usd(earned - goal);
+        els.pace.textContent = "Goal reached";
+        return;
+      }
+
+      els.gapLabel.textContent = "Still to go";
+      els.gap.textContent = usd(remaining);
+      if (msLeft <= 0) {
+        els.pace.textContent = "Day is over";
+        return;
+      }
+      const perHour = remaining / (msLeft / 36e5);
+      els.pace.textContent = `${usd(perHour)}/hr to finish`;
+    }
+
+    function renderSales() {
+      const count = state.sales.length;
+      els.eyebrow.textContent = count === 0
+        ? "Made today"
+        : `Made today · ${count} ${count === 1 ? "sale" : "sales"}`;
+      els.sales.replaceChildren();
+      for (const sale of state.sales) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = sale.cents < 0 ? "chip is-refund" : "chip";
+        button.dataset.id = sale.id;
+        const when = new Intl.DateTimeFormat("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+        }).format(sale.at);
+        button.title = `${when} · click to remove`;
+        button.setAttribute("aria-label", `Remove ${usd(sale.cents)} sale from ${when}`);
+        button.textContent = usd(sale.cents);
+        els.sales.append(button);
+      }
+    }
+
+    function renderAll({ tween = false } = {}) {
+      const earned = sumCents();
+      renderProgress(earned);
+      renderClock();
+      renderSales();
+      renderAmount(earned, tween);
+      document.title = `${usd(earned)} today`;
+    }
+
+    function tick() {
+      if (ensureToday()) renderAll({ tween: true });
+      else renderClock();
+    }
+
+    function shake(input) {
+      input.classList.remove("shake");
+      void input.offsetWidth;
+      input.classList.add("shake");
+    }
+
+    function addSale() {
+      const cents = parseDollars(els.saleInput.value, true);
+      if (cents === null) {
+        shake(els.saleInput);
+        return;
+      }
+      state.sales.unshift({ id: uid(), cents, at: Date.now() });
+      els.saleInput.value = "";
+      save();
+      renderAll({ tween: true });
+      els.saleInput.focus();
+    }
+
+    function commitGoal() {
+      const raw = els.goalInput.value.trim();
+      if (raw === "") {
+        els.goalInput.value = formatGoalInput(state.goalCents);
+        return;
+      }
+      const next = parseGoal(raw);
+      if (next === null) {
+        els.goalInput.value = formatGoalInput(state.goalCents);
+        shake(els.goalInput);
+        return;
+      }
+      state.goalCents = next;
+      els.goalInput.value = formatGoalInput(state.goalCents);
+      save();
+      renderAll();
+    }
+
+    async function toggleFullscreen() {
+      try {
+        if (document.fullscreenElement) await document.exitFullscreen();
+        else await document.documentElement.requestFullscreen();
+      } catch {
+        // The browser can reject fullscreen without a direct gesture.
+      }
+    }
+
+    function syncFullscreenButton() {
+      const on = document.fullscreenElement != null;
+      els.fullscreen.setAttribute("aria-pressed", String(on));
+      els.fullscreen.setAttribute("aria-label", on ? "Exit full screen" : "Enter full screen");
+      els.fullscreen.title = on ? "Exit full screen (F)" : "Full screen (F)";
+    }
+
+    els.saleForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      addSale();
+    });
+
+    els.goalInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        commitGoal();
+        els.goalInput.blur();
+      }
+    });
+    els.goalInput.addEventListener("blur", commitGoal);
+    els.goalInput.addEventListener("animationend", () => els.goalInput.classList.remove("shake"));
+    els.saleInput.addEventListener("animationend", () => els.saleInput.classList.remove("shake"));
+
+    els.sales.addEventListener("click", (event) => {
+      const button = event.target.closest(".chip");
+      if (!button) return;
+      state.sales = state.sales.filter((sale) => sale.id !== button.dataset.id);
+      save();
+      renderAll({ tween: true });
+    });
+
+    els.fullscreen.addEventListener("click", toggleFullscreen);
+    document.addEventListener("fullscreenchange", () => {
+      syncFullscreenButton();
+      fitAmount();
+    });
+
+    window.addEventListener("keydown", (event) => {
+      if (event.key.toLowerCase() !== "f" || event.metaKey || event.ctrlKey || event.altKey) return;
+      const tag = document.activeElement && document.activeElement.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      event.preventDefault();
+      toggleFullscreen();
+    });
+
+    window.addEventListener("resize", fitAmount);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") tick();
+    });
+
+    els.goalInput.value = formatGoalInput(state.goalCents);
+    renderAll({ tween: sumCents() !== 0 });
+    setInterval(tick, 1000);
+  </script>
+</body>
+</html>
